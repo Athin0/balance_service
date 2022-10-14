@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// PRNformatter Хранит данные о входном и выходном файле
 type PRNformatter struct {
 	in  *os.File
 	out *os.File
@@ -18,6 +19,8 @@ func CreatePRNformatter(in *os.File, out *os.File) *PRNformatter {
 	return &PRNformatter{in, out}
 }
 
+// Format преобразует prn в html
+//данные о входном и выходном файле хранятся в структуре PRNformatter
 func (f *PRNformatter) Format() {
 	columns, pre, err := GetStrings(f.in) //читаем первую строку, чтобы найти заголовки
 	if err != nil {
@@ -61,7 +64,7 @@ func (f *PRNformatter) Format() {
 		}
 		ans := strings.Join(prepareArr, ",") + "\n" //объединение в одну строку для записи в файл + перенос строки
 
-		_, err = f.out.WriteString(ans)
+		_, err = f.out.WriteString(ans) //записываем в выходной файл
 		if err != nil {
 			log.Println("Err in writeString:", err)
 			return
@@ -70,7 +73,7 @@ func (f *PRNformatter) Format() {
 	}
 }
 
-// GetStrings получает часть искомой строки и часть следующей, все переносится вследствие странного считывания файла
+// GetStrings получает часть искомой строки и часть следующей, строка переносится вследствие странного считывания файла
 func GetStrings(in *os.File) (string, string, error) {
 	text1 := ""
 	data := make([]byte, 64)
@@ -90,10 +93,4 @@ func GetStrings(in *os.File) (string, string, error) {
 		second = ans[1]
 	}
 	return first, second, nil
-}
-
-// MakeFormat4String преобразует строку в соответствии с выходным форматом, а именно "имя_поля":"данные_поля"
-func MakeFormat4String(title string, data []rune) (ans string) {
-	ans = "\"" + title + "\"" + ":\"" + strings.TrimSpace(string(data)) + "\""
-	return
 }

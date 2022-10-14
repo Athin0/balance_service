@@ -6,10 +6,10 @@ import (
 	"io"
 	"log"
 	"os"
-	"regexp"
 	"strings"
 )
 
+// CSVformatter Хранит данные о входном и выходном файле
 type CSVformatter struct {
 	in  *os.File
 	out *os.File
@@ -19,10 +19,12 @@ func CreateCSVformatter(in *os.File, out *os.File) *CSVformatter {
 	return &CSVformatter{in, out}
 }
 
+// Format преобразует csv в html
+//данные о входном и выходном файле хранятся в структуре CSVformatter
 func (f *CSVformatter) Format() {
 	var columns []string
 	reader := csv.NewReader(f.in)
-	reader.Comma = ','
+	reader.Comma = ',' //задаем разделитель
 	n := true
 	for {
 		record, e := reader.Read()
@@ -33,15 +35,15 @@ func (f *CSVformatter) Format() {
 			fmt.Println("Err in read file:", e)
 			break
 		}
-		if n {
+		if n { //находим названия полей
 			n = false
 			columns = record
 			continue
 		}
 
 		prepareArr, err := func(raw []string) (line []string, err error) {
-			for i, word := range raw { // добавляем поочереди каждое поле строки(отформатированное)
-				line = append(line, MakeFormat4String(columns[i], []rune(word)))
+			for i, word := range raw { // добавляем поочереди каждое поле строки (отформатированное)
+				line = append(line, MakeFormat4String(columns[i], []rune(word))) //собираем выходную строку в нужном формате
 			}
 			return
 		}(record)
@@ -51,7 +53,7 @@ func (f *CSVformatter) Format() {
 		}
 		ans := strings.Join(prepareArr, ",") + "\n" //объединение в одну строку для записи в файл + перенос строки
 
-		_, err = f.out.WriteString(ans)
+		_, err = f.out.WriteString(ans) //записываем в исходный файл
 		if err != nil {
 			log.Println("Err in writeString:", err)
 			return
@@ -60,8 +62,3 @@ func (f *CSVformatter) Format() {
 	}
 }
 
-func Prepare(text string) []string {
-	re := regexp.MustCompile(`^".*?"`)
-	splitedText := re.FindAllString(text, -1)
-	return splitedText
-}

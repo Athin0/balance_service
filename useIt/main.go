@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"useIt/Formatters"
@@ -8,7 +9,7 @@ import (
 
 func main() {
 	fileOutName := "result/hello.html"
-	fileInName := "data/data.csv"
+	fileInName := "data/data.prn"
 
 	out, err := CreateFile(fileOutName)
 	if err != nil {
@@ -24,6 +25,7 @@ func main() {
 
 }
 
+// CreateFile создает файл по заданному имени
 func CreateFile(nameFile string) (*os.File, error) {
 	file, err := os.Create(nameFile)
 	if err != nil {
@@ -32,6 +34,8 @@ func CreateFile(nameFile string) (*os.File, error) {
 	}
 	return file, nil
 }
+
+// OpenFile открывает файл по заданному имени
 func OpenFile(nameFile string) (*os.File, error) {
 	in, err := os.Open(nameFile)
 	if err != nil {
@@ -41,18 +45,24 @@ func OpenFile(nameFile string) (*os.File, error) {
 	return in, nil
 }
 
+// MakeConvert выбирает какой конвертер использовать
 func MakeConvert(in *os.File, out *os.File, NameInpFile string) {
 	var formatter Formatters.Formatter
 	lenN := len(NameInpFile)
 	if lenN <= 3 {
+		fmt.Println("file name <= 3 : input format not supported")
 		return
 	}
-	format := NameInpFile[lenN-3:]
+	format := NameInpFile[lenN-3:] //проверяем формат по окончанию, можно было отделить конец через split
+
 	switch format {
 	case "csv":
 		formatter = Formatters.CreateCSVformatter(in, out)
 	case "prn":
 		formatter = Formatters.CreatePRNformatter(in, out)
+	default:
+		fmt.Println("input format not supported ")
+		return
 	}
 	formatter.Format()
 }
