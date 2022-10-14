@@ -1,75 +1,27 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log"
 	"os"
-	"regexp"
-	"strings"
+	"useIt/Formatters"
 )
 
 func main() {
-	file, err := CreateFile("hello.html")
+	fileOutName := "result/hello.html"
+	fileInName := "data/data.csv"
+
+	out, err := CreateFile(fileOutName)
 	if err != nil {
 		os.Exit(1)
 	}
-	defer file.Close()
-
-	in, err := OpenFile("data/data.prn")
+	defer out.Close()
+	in, err := OpenFile(fileInName)
 	if err != nil {
 		os.Exit(1)
 	}
 	defer in.Close()
+	MakeConvert(in, out, fileInName)
 
-	columns, pre, err := GetString(in)
-	if err != nil {
-		log.Println("Err in Get String from file:", err)
-	}
-	re := regexp.MustCompile(`[A-Z][^A-Z]*`)
-	splitedText := re.FindAllString(columns, -1)
-	ColumnsLen := make([]int, 0, 0)
-	for _, elem := range splitedText {
-		ColumnsLen = append(ColumnsLen, len(elem))
-	}
-
-	fmt.Println(ColumnsLen)
-	for {
-		a1, a2, err := GetString(in)
-		if err == io.EOF { // если конец файла
-			break // выходим из цикла
-		}
-		//textLine := pre + a1 + "\n"
-		//pre = a2
-		//text = strings.Replace(text, " ", ",", -1)
-		//text = strings.Trim(text, ",")
-		//r := regexp.MustCompile("\\s+")
-		//r2 := regexp.MustCompile("\\n+")
-		//r3 := regexp.MustCompile(";")
-		//text = r2.ReplaceAllString(text, ";")
-		//text = r.ReplaceAllString(text, " ")
-		//text = r.ReplaceAllString(text, ",")
-		//text = r3.ReplaceAllString(text, "\n")
-		file.WriteString(textLine)
-
-	}
-	/*
-		in, err = os.Open("data.csv")
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		for {
-			n, err := in.Read(data)
-			if err == io.EOF { // если конец файла
-				break // выходим из цикла
-			}
-			file.Write(data[:n])
-			fmt.Print(string(data[:n]))
-		}
-
-	*/
 }
 
 func CreateFile(nameFile string) (*os.File, error) {
@@ -88,35 +40,19 @@ func OpenFile(nameFile string) (*os.File, error) {
 	}
 	return in, nil
 }
-func GetString(in *os.File) (string, string, error) {
-	text1 := ""
-	data := make([]byte, 64)
-	for !strings.ContainsAny(text1, "\n") {
-		n, err := in.Read(data)
-		if err != nil {
-			return "", "", err
-		}
-		text1 += string(data[:n])
-	}
-	ans := strings.Split(text1, "\n")
-	var first, second string
-	if len(ans) > 0 {
-		first = ans[0]
-	}
-	if len(ans) > 1 {
-		second = ans[1]
-	}
-	return first, second, nil
-}
 
-func ProcessingText(text string, columns []int) string {
-	arr := make([]string, 0)
-	n := 0
-	for _, elem := range columns {
-		t := text[n : n+elem]
-		println(t)
-		arr = append(arr, t)
-		n += elem
+func MakeConvert(in *os.File, out *os.File, NameInpFile string) {
+	var formatter Formatters.Formatter
+	lenN := len(NameInpFile)
+	if lenN <= 3 {
+		return
 	}
-	return text
+	format := NameInpFile[lenN-3:]
+	switch format {
+	case "csv":
+		formatter = Formatters.CreateCSVformatter(in, out)
+	case "prn":
+		formatter = Formatters.CreatePRNformatter(in, out)
+	}
+	formatter.Format()
 }
