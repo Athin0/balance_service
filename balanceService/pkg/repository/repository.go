@@ -15,8 +15,10 @@ type Repo interface {
 	AddExpense(ctx context.Context, transaction struct4parse.Transaction) error
 	GetBalance(ctx context.Context, income *struct4parse.Balance) error
 	AddReserve(ctx context.Context, transaction struct4parse.Transaction) error
-	GetAllReserved(ctx context.Context, income *[]struct4parse.Transaction) error
+	GetAllReserved(ctx context.Context, income *[]struct4parse.Reserve) error
 	GetAllBalances(ctx context.Context, income *[]struct4parse.Balance) error
+	GetAllTransactions(ctx context.Context, income *[]struct4parse.Transaction) error
+	DisReserve(ctx context.Context, expense struct4parse.Transaction) error
 }
 
 type Repository struct {

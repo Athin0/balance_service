@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -158,16 +157,17 @@ func (s *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\": \"success\"}"))
-	user := strconv.FormatInt(incomeParams.UserId, 10)
-	money := strconv.FormatFloat(incomeParams.Value, 'f', -1, 64)
-	w.Write([]byte("{\"Balance of user " + user + " : " + money + "}\""))
-
+	ans, err := json.Marshal(*incomeParams)
+	if err != nil {
+		log.Println("err in marshal: ", err)
+	}
+	w.Write(ans)
 }
 
 func (s *Handler) GetReserved(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	incomeParams := &[]struct4parse.Transaction{}
+	incomeParams := &[]struct4parse.Reserve{}
 
 	err := s.data.GetAllReserved(r.Context(), incomeParams)
 
@@ -182,13 +182,12 @@ func (s *Handler) GetReserved(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\": \"success\"}"))
-	fmt.Println(*incomeParams)
-	ans := ""
-	for _, elem := range *incomeParams {
-		ans += "{" + strconv.FormatInt(elem.Id, 10) + ", " + strconv.FormatInt(elem.UserId, 10) + ", " + strconv.FormatInt(elem.ServiceId, 10) + ", " + strconv.FormatInt(elem.OrderId, 10) + ", " + strconv.FormatFloat(elem.Value, 'f', -1, 64) + "},\n"
 
+	ans, err := json.Marshal(*incomeParams)
+	if err != nil {
+		log.Println("err in marshal: ", err)
 	}
-	w.Write([]byte("{\"Reserves\": [" + ans + "]\"}"))
+	w.Write(ans)
 }
 
 func (s *Handler) GetBalances(w http.ResponseWriter, r *http.Request) {
@@ -209,9 +208,66 @@ func (s *Handler) GetBalances(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\": \"success\"}"))
-	ans := ""
-	for _, elem := range incomeParams {
-		ans += "\"" + strconv.FormatInt(elem.UserId, 10) + "\":" + strconv.FormatFloat(elem.Value, 'f', -1, 64) + ", \n"
+	ans, err := json.Marshal(incomeParams)
+	if err != nil {
+		log.Println("err in marshal: ", err)
 	}
-	w.Write([]byte("{\"Balances\": [" + ans + "]\"}"))
+	w.Write(ans)
+}
+
+func (s *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	incomeParams := make([]struct4parse.Transaction, 0)
+
+	err := s.data.GetAllTransactions(r.Context(), &incomeParams)
+
+	if err != nil {
+		if errors.Is(err, mErrors.DatabaseError) {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("{\"status\": \"success\"}"))
+	ans, err := json.Marshal(incomeParams)
+	if err != nil {
+		log.Println("err in marshal: ", err)
+	}
+	w.Write(ans)
+}
+
+func (s *Handler) DisReserve(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		return
+	}
+	incomeParams := &struct4parse.Transaction{}
+	err = json.Unmarshal(body, incomeParams)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		return
+	}
+	incomeParams.Time = time.Now()
+
+	err = s.data.DisReserve(r.Context(), *incomeParams)
+
+	if err != nil {
+		if errors.Is(err, mErrors.DatabaseError) {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("{\"status\": \"success\"}"))
+
 }
