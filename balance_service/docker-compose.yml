@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  postgres:
+    container_name: db
+    image: postgres:14.5
+    restart: unless-stopped
+    volumes:
+      - ./db/tables.sql:/docker-entrypoint-initdb.d/dbinit.sql
+    environment:
+      POSTGRES_DB: "postgres"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "qwerty"
+    ports:
+      - "5432:5432"
+    networks:
+      - smnet
+  app:
+    build: ./
+    ports:
+      - "8000:8080"
+    depends_on:
+       postgres:
+         condition: service_started
+    environment:
+       DB_PASSWORD: 'qwerty'
+    networks:
+      - smnet
+networks:
+  smnet:
+    driver: bridge
+
