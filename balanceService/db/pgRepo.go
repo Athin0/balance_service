@@ -120,12 +120,7 @@ func (db *PostgresDB) AddReserve(ctx context.Context, expense struct4parse.Trans
 			"UPDATE balance.balance SET value = value - $1 WHERE user_id = $2",
 			expense.Value, expense.UserId)
 		if err != nil {
-			if errPq, ok := err.(*pgconn.PgError); ok {
-				if errPq.Code == pgerrcode.CheckViolation {
-					return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.NotEnoughUserBalanceError)
-				}
-			}
-			return fmt.Errorf("add reserve query exec failed: %w", err)
+			return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.NotEnoughUserBalanceError)
 		}
 	} else {
 		return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.UnknownUserIdError)
@@ -396,15 +391,10 @@ func (db *PostgresDB) DisReserve(ctx context.Context, expense struct4parse.Trans
 			"UPDATE balance.balance SET value = value + $1 WHERE user_id = $2",
 			expense.Value, expense.UserId)
 		if err != nil {
-			if errPq, ok := err.(*pgconn.PgError); ok {
-				if errPq.Code == pgerrcode.CheckViolation {
-					return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.NotEnoughUserBalanceError)
-				}
-			}
 			return fmt.Errorf("add reserve query exec failed: %w", err)
 		}
 	} else {
-		return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.UnknownUserIdError)
+		return fmt.Errorf("service_id: %d, order_id:%d err: %w", expense.ServiceId, expense.OrderId, mErrors.UnknownReserveError)
 	}
 
 	var index int64
