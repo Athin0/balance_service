@@ -17,7 +17,7 @@ type Repo interface {
 	AddReserve(ctx context.Context, transaction struct4parse.Transaction) error
 	GetAllReserved(ctx context.Context, income *[]struct4parse.Reserve) error
 	GetAllBalances(ctx context.Context, income *[]struct4parse.Balance) error
-	GetAllTransactions(ctx context.Context, income *[]struct4parse.Transaction) error
+	GetAllTransactions(ctx context.Context, income *[]struct4parse.Transaction, by struct4parse.OrderParams) error
 	DisReserve(ctx context.Context, expense struct4parse.Transaction) error
 	GetReports(ctx context.Context, income *[]struct4parse.Report, timeDur struct4parse.Time4Report) error
 }

@@ -38,6 +38,11 @@ func NewPostgresDB(cfg Config) (*PostgresDB, error) {
 		cfg.SSLMode)
 	db, err := sql.Open("postgres", url)
 	if err != nil {
+		log.Printf("postgres connect error : (%v)", err)
+		time.Sleep(time.Millisecond * 10)
+		db, err = sql.Open("postgres", url)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("postgres connect error : (%v)", err)
 	}
 
@@ -325,6 +330,7 @@ func (db *PostgresDB) GetAllReserved(ctx context.Context, income *[]struct4parse
 
 	var elem struct4parse.Reserve
 	arr := make([]struct4parse.Reserve, 0)
+
 	for rows.Next() {
 		err := rows.Scan(&elem.Id, &elem.UserId, &elem.ServiceId, &elem.OrderId, &elem.Value)
 		if err != nil {
@@ -339,14 +345,20 @@ func (db *PostgresDB) GetAllReserved(ctx context.Context, income *[]struct4parse
 }
 
 //GetAllTransactions получаем список балансов всех транзакций
-func (db *PostgresDB) GetAllTransactions(ctx context.Context, income *[]struct4parse.Transaction) error {
+func (db *PostgresDB) GetAllTransactions(ctx context.Context, income *[]struct4parse.Transaction, by struct4parse.OrderParams) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
 	}
 	defer tx.Rollback()
-
-	rows, err := db.db.Query("select * from balance.history")
+	var rows *sql.Rows
+	if by.By == "value" {
+		rows, err = db.db.Query("select * from balance.history ORDER BY value")
+	} else if by.By == "time" {
+		rows, err = db.db.Query("select * from balance.history ORDER BY occurred_at")
+	} else {
+		rows, err = db.db.Query("select * from balance.history")
+	}
 	defer rows.Close()
 
 	if err != nil {

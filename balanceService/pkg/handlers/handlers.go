@@ -217,10 +217,23 @@ func (s *Handler) GetBalances(w http.ResponseWriter, r *http.Request) {
 
 func (s *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		log.Println(err, "1")
+		return
+	}
+	by := &struct4parse.OrderParams{}
+	err = json.Unmarshal(body, by)
+	if err != nil && string(body) != "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		log.Println(err, "2")
+		return
+	}
 	incomeParams := make([]struct4parse.Transaction, 0)
-
-	err := s.data.GetAllTransactions(r.Context(), &incomeParams)
-
+	err = s.data.GetAllTransactions(r.Context(), &incomeParams, *by)
 	if err != nil {
 		if errors.Is(err, mErrors.DatabaseError) {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -232,6 +245,18 @@ func (s *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\": \"success\"}"))
+
+	since := 0
+	if by.Since >= len(incomeParams) {
+		return
+	} else {
+		since = by.Since
+	}
+	until := len(incomeParams)
+	if by.Num != 0 && by.Since+by.Num < len(incomeParams) {
+		until = by.Since + by.Num
+	}
+	incomeParams = incomeParams[since:until]
 	ans, err := json.Marshal(incomeParams)
 	if err != nil {
 		log.Println("err in marshal: ", err)

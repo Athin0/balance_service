@@ -42,3 +42,8 @@ type Time4Report struct {
 	Year  int `json:"year"`
 	Month int `json:"month"`
 }
+type OrderParams struct {
+	Since int    `json:"since"`
+	Num   int    `json:"num"`
+	By    string `json:"by"`
+}

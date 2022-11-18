@@ -3,6 +3,7 @@ package main
 import (
 	"balance_service/db"
 	"balance_service/pkg/handlers"
+	"balance_service/pkg/middleware"
 	"balance_service/pkg/repository"
 	"fmt"
 	"github.com/gorilla/mux"
@@ -12,7 +13,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 )
 
 func main() {
@@ -53,7 +53,9 @@ func main() {
 	r.HandleFunc("/getHistory", hand.GetHistory).Methods("GET")
 	r.HandleFunc("/getReport", hand.GetReport).Methods("GET")
 
-	r0 := AccessLog(logger, r)
+	r0 := middleware.AccessLog(logger, r)
+	r0 = middleware.Panic(r0)
+
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {
 		port = "8080"
@@ -79,22 +81,5 @@ func initDB() (*db.PostgresDB, error) {
 		Password: viper.GetString("db.password"),
 		DBName:   viper.GetString("db.dbname"),
 		SSLMode:  viper.GetString("db.sslmode"),
-	})
-}
-func initLogger() {
-
-}
-
-func AccessLog(logger *zap.SugaredLogger, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		logger.Infow("New request",
-			"method", r.Method,
-			"remote_addr", r.RemoteAddr,
-			"url", r.URL.Path,
-			"time", time.Since(start),
-		)
-		next.ServeHTTP(w, r)
-
 	})
 }
