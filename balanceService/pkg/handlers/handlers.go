@@ -44,7 +44,6 @@ func (s *Handler) AddIncome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	incomeParams.Time = time.Now()
-
 	err = s.data.AddIncome(r.Context(), *incomeParams)
 
 	if err != nil {

@@ -11,6 +11,8 @@ import (
 	"go.uber.org/zap"
 	"log"
 	"net/http"
+	"os"
+	"time"
 )
 
 var (
@@ -55,8 +57,13 @@ func main() {
 	r.HandleFunc("/getBalances", hand.GetBalances).Methods("GET")
 	r.HandleFunc("/getHistory", hand.GetHistory).Methods("GET")
 
-	fmt.Println("starting service at :" + viper.GetString("port"))
-	err = http.ListenAndServe(":"+viper.GetString("port"), r)
+	r0 := AccessLog(logger, r)
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080"
+	}
+	fmt.Println("starting service at :" + port)
+	err = http.ListenAndServe(":"+port, r0)
 	if err != nil {
 		log.Println("err in listen and serve", err)
 		return
@@ -81,4 +88,18 @@ func initDB() (*db.PostgresDB, error) {
 }
 func initLogger() {
 
+}
+
+func AccessLog(logger *zap.SugaredLogger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		logger.Infow("New request",
+			"method", r.Method,
+			"remote_addr", r.RemoteAddr,
+			"url", r.URL.Path,
+			"time", time.Since(start),
+		)
+		next.ServeHTTP(w, r)
+
+	})
 }

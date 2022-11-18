@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS balance.history
     order_id bigint NOT NULL ,
     value decimal(10, 2) NOT NULL CHECK (value >= 0),
     occurred_at timestamptz NOT NULL,
-    description text
+    description text,
+    replenish bool  NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS balance.reserved

@@ -22,6 +22,7 @@ type Transaction struct {
 	Value       float64 `json:"value"`
 	Time        time.Time
 	Description string `json:"description,omitempty"`
+	Replenish   bool   `json:"replenish"`
 }
 
 type Reserve struct {

@@ -1,13 +1,13 @@
 FROM golang:latest
 
 WORKDIR /app
+COPY go.* ./
+RUN go mod download
+
 COPY ./ /app
-
 #install psql
-RUN apt-get update
-RUN apt-get -y install postgresql-client
+RUN apt-get update && apt-get -y upgrade
 
-RUN chmod +x wait-for-postgres.sh
 
 RUN go build -o myapp ./cmd/main.go
 

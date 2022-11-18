@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
 	"log"
+	"time"
 )
 
 const serviceIncome = 0
@@ -39,10 +40,6 @@ func NewPostgresDB(cfg Config) (*PostgresDB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("postgres connect error : (%v)", err)
 	}
-	log.Println(db)
-	if err != nil {
-		return nil, err
-	}
 
 	err = db.Ping()
 	if err != nil {
@@ -62,10 +59,10 @@ func (db *PostgresDB) AddIncome(ctx context.Context, income struct4parse.Balance
 
 	_, err = tx.Exec(
 		`INSERT INTO balance.history
-				(user_id, service_id, order_id, value, occurred_at, description)
+				(user_id, service_id, order_id, value, occurred_at, description, replenish)
 			VALUES
-				($1, $2, $3, $4, $5, $6)`,
-		income.UserId, serviceIncome, orderIncome, income.Value, income.Time, income.Description)
+				($1, $2, $3, $4, $5, $6, $7)`,
+		income.UserId, serviceIncome, orderIncome, income.Value, income.Time, "income "+income.Description, true)
 
 	if err != nil {
 		return fmt.Errorf("add transaction to history query exec failed: %w", err)
@@ -145,6 +142,18 @@ func (db *PostgresDB) AddReserve(ctx context.Context, expense struct4parse.Trans
 	if err != nil {
 		return fmt.Errorf("add transaction to history query exec failed: %w", err)
 	}
+	time := time.Now()
+	_, err = tx.Exec(
+		`INSERT INTO balance.history
+				(user_id, service_id, order_id, value, occurred_at, description, replenish)
+			VALUES
+				($1, $2, $3, $4, $5, $6, $7)`,
+		expense.UserId, expense.ServiceId, expense.OrderId, expense.Value, time, "reserve", false)
+
+	if err != nil {
+		return fmt.Errorf("add transaction to history query exec failed: %w", err)
+	}
+
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("tx commit failed failed: %w", err)
 	}
@@ -222,10 +231,10 @@ func (db *PostgresDB) AddExpense(ctx context.Context, expense struct4parse.Trans
 	//добавляем в отчет транзакцию
 	_, err = db.db.Exec(
 		`INSERT INTO balance.history
-				(user_id, service_id, order_id, value, occurred_at, description)
+				(user_id, service_id, order_id, value, occurred_at, description, replenish)
 			VALUES
-				($1, $2, $3, $4, $5, $6)`,
-		expense.UserId, expense.ServiceId, expense.OrderId, expense.Value, expense.Time, expense.Description)
+				($1, $2, $3, $4, $5, $6, $7)`,
+		expense.UserId, expense.ServiceId, expense.OrderId, expense.Value, expense.Time, expense.Description, false)
 	if err != nil {
 		return fmt.Errorf("add transaction to history query exec failed: %w", err)
 	}
@@ -356,7 +365,7 @@ func (db *PostgresDB) GetAllTransactions(ctx context.Context, income *[]struct4p
 	var elem struct4parse.Transaction
 	arr := make([]struct4parse.Transaction, 0)
 	for rows.Next() {
-		err := rows.Scan(&elem.Id, &elem.UserId, &elem.ServiceId, &elem.OrderId, &elem.Value, &elem.Time, &elem.Description)
+		err := rows.Scan(&elem.Id, &elem.UserId, &elem.ServiceId, &elem.OrderId, &elem.Value, &elem.Time, &elem.Description, &elem.Replenish)
 		if err != nil {
 			return fmt.Errorf("err in red rows: %s", err)
 		}
@@ -410,6 +419,7 @@ func (db *PostgresDB) DisReserve(ctx context.Context, expense struct4parse.Trans
 	//удаляем деньги из таблицы резервации
 	_, err = db.db.Exec(
 		"DELETE FROM balance.reserved WHERE id = $1", index)
+	time := time.Now()
 	if err != nil {
 
 		if errPq, ok := err.(*pgconn.PgError); ok {
@@ -419,6 +429,16 @@ func (db *PostgresDB) DisReserve(ctx context.Context, expense struct4parse.Trans
 		}
 
 		return fmt.Errorf("add expense query exec failed: %w", err)
+	}
+	_, err = tx.Exec(
+		`INSERT INTO balance.history
+				(user_id, service_id, order_id, value, occurred_at, description, replenish)
+			VALUES
+				($1, $2, $3, $4, $5, $6, $7)`,
+		expense.UserId, expense.ServiceId, expense.OrderId, expense.Value, time, "disreserve", true)
+
+	if err != nil {
+		return fmt.Errorf("add transaction to history query exec failed: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
