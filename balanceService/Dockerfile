@@ -5,9 +5,8 @@ COPY go.* ./
 RUN go mod download
 
 COPY ./ /app
-#install psql
-RUN apt-get update && apt-get -y upgrade
 
+RUN apt-get update && apt-get -y upgrade
 
 RUN go build -o myapp ./cmd/main.go
 

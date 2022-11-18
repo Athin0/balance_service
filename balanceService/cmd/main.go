@@ -15,11 +15,6 @@ import (
 	"time"
 )
 
-var (
-	stringLength = viper.GetInt64("uniquestr.len")
-	chars        = []rune(viper.GetString("uniquestr.chars"))
-)
-
 func main() {
 
 	zapLogger, errZap := zap.NewProduction()
@@ -56,6 +51,7 @@ func main() {
 	r.HandleFunc("/getReserved", hand.GetReserved).Methods("GET")
 	r.HandleFunc("/getBalances", hand.GetBalances).Methods("GET")
 	r.HandleFunc("/getHistory", hand.GetHistory).Methods("GET")
+	r.HandleFunc("/getReport", hand.GetReport).Methods("GET")
 
 	r0 := AccessLog(logger, r)
 	port := os.Getenv("SERVER_PORT")
@@ -68,7 +64,6 @@ func main() {
 		log.Println("err in listen and serve", err)
 		return
 	}
-
 }
 
 func initConfig() error {

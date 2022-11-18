@@ -436,3 +436,42 @@ func (db *PostgresDB) DisReserve(ctx context.Context, expense struct4parse.Trans
 	}
 	return nil
 }
+
+func (db *PostgresDB) GetReports(ctx context.Context, income *[]struct4parse.Report, timeDur struct4parse.Time4Report) error {
+	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin tx failed: %w", err)
+	}
+	defer tx.Rollback()
+	since := time.Date(timeDur.Year, time.Month(timeDur.Month), 0, 0, 0, 0, 0, time.UTC)
+	if timeDur.Month == 12 { //учтем конец года
+		timeDur.Year++
+		timeDur.Month = 0
+	}
+	until := time.Date(timeDur.Year, time.Month(timeDur.Month+1), 0, 0, 0, 0, 0, time.UTC)
+
+	rows, err := db.db.Query(`SELECT SUM(value), service_id FROM balance.history WHERE replenish = false  and description != 'reserve' and occurred_at > $1 and occurred_at <= $2  GROUP BY service_id `,
+		since, until)
+	defer rows.Close()
+
+	if err != nil {
+		log.Println(err.Error())
+		return fmt.Errorf("get balance query row failed: %s", err.Error())
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("tx commit failed failed: %s", err.Error())
+	}
+
+	var elem struct4parse.Report
+	arr := make([]struct4parse.Report, 0)
+	for rows.Next() {
+		err := rows.Scan(&elem.Sum, &elem.ServiceId)
+		if err != nil {
+			return fmt.Errorf("err in red rows: %s", err)
+		}
+		arr = append(arr, elem)
+	}
+	*income = arr
+	err = rows.Err()
+	return nil
+}

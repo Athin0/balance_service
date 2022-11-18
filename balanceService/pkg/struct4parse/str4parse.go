@@ -32,3 +32,13 @@ type Reserve struct {
 	OrderId   int64   `json:"order_id"`
 	Value     float64 `json:"value"`
 }
+
+type Report struct {
+	ServiceId int64   `json:"service_id"`
+	Sum       float64 `json:"sum"`
+}
+
+type Time4Report struct {
+	Year  int `json:"year"`
+	Month int `json:"month"`
+}

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"balance_service/pkg/Report"
 	"balance_service/pkg/mErrors"
 	"balance_service/pkg/repository"
 	"balance_service/pkg/struct4parse"
@@ -269,4 +270,45 @@ func (s *Handler) DisReserve(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("{\"status\": \"success\"}"))
 
+}
+
+func (s *Handler) GetReport(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		log.Println(err)
+		return
+	}
+	timeDur := &struct4parse.Time4Report{}
+	err = json.Unmarshal(body, timeDur)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		log.Println(err)
+		return
+	}
+
+	incomeParams := make([]struct4parse.Report, 0)
+
+	err = s.data.GetReports(r.Context(), &incomeParams, *timeDur)
+	text, err := Report.MakeReport(&incomeParams)
+	if err != nil {
+		if errors.Is(err, mErrors.DatabaseError) {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("{\"status\": \"success\"}"))
+	w.Write([]byte("{\"file name\": \"" + text + "\"}"))
+	ans, err := json.Marshal(incomeParams)
+	if err != nil {
+		log.Println("err in marshal: ", err)
+	}
+	w.Write(ans)
 }
