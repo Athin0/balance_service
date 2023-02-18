@@ -2,12 +2,12 @@ package db
 
 import (
 	"balance_service/pkg/mErrors"
-	"balance_service/pkg/struct4parse"
+	"balance_service/pkg/utils"
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgerrcode"
+	_ "github.com/jackc/pgx/stdlib" // pgx driver
+	"github.com/jmoiron/sqlx"
 	"log"
 	"time"
 )
@@ -25,7 +25,7 @@ type Config struct {
 }
 
 type PostgresDB struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
 func NewPostgresDB(cfg Config) (*PostgresDB, error) {
@@ -36,11 +36,26 @@ func NewPostgresDB(cfg Config) (*PostgresDB, error) {
 		cfg.Port,
 		cfg.DBName,
 		cfg.SSLMode)
-	db, err := sql.Open("postgres", url)
+	fmt.Println(url)
+	db, err := sqlx.Connect("pgx", url)
+
+	/*
+		dataSourceName := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s",
+			cfg.Host,
+			cfg.Port,
+			cfg.User,
+			cfg.DBName,
+			cfg.Password,
+		)
+
+		db, err := sqlx.Connect("pgx", dataSourceName)
+
+	*/
 	if err != nil {
 		log.Printf("postgres connect error : (%v)", err)
 		time.Sleep(time.Millisecond * 10)
-		db, err = sql.Open("postgres", url)
+		db, err = sqlx.Connect("pgx", url)
+		//db, err = sqlx.Open("postgres", url)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("postgres connect error : (%v)", err)
@@ -55,7 +70,7 @@ func NewPostgresDB(cfg Config) (*PostgresDB, error) {
 }
 
 //AddIncome пополнение счета в бд
-func (db *PostgresDB) AddIncome(ctx context.Context, income struct4parse.BalanceWithDesc) error {
+func (db *PostgresDB) AddIncome(ctx context.Context, income utils.BalanceWithDesc) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -105,7 +120,7 @@ func (db *PostgresDB) AddIncome(ctx context.Context, income struct4parse.Balance
 }
 
 //AddReserve резервирует деньги для дальнейшего списания
-func (db *PostgresDB) AddReserve(ctx context.Context, expense struct4parse.Transaction) error {
+func (db *PostgresDB) AddReserve(ctx context.Context, expense utils.Transaction) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -163,7 +178,7 @@ func (db *PostgresDB) AddReserve(ctx context.Context, expense struct4parse.Trans
 //AddExpense переводит деньги из резервации если они были, если нет то с основного счета пользователя.
 //Выдает ошибку если денег нехватает.
 //После успешной операции добавляет ее в отчет - транзакции
-func (db *PostgresDB) AddExpense(ctx context.Context, expense struct4parse.Transaction) error {
+func (db *PostgresDB) AddExpense(ctx context.Context, expense utils.Transaction) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -187,13 +202,6 @@ func (db *PostgresDB) AddExpense(ctx context.Context, expense struct4parse.Trans
 		_, err = db.db.Exec(
 			"DELETE FROM balance.reserved WHERE id = $1", index) //если было в резерве - удаляем из него
 		if err != nil {
-
-			if errPq, ok := err.(*pgconn.PgError); ok {
-				if errPq.Code == pgerrcode.CheckViolation {
-					return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.NotEnoughUserBalanceError)
-				}
-			}
-
 			return fmt.Errorf("add expense query exec failed: %w", err)
 		}
 	} else {
@@ -210,12 +218,6 @@ func (db *PostgresDB) AddExpense(ctx context.Context, expense struct4parse.Trans
 				"UPDATE balance.balance SET value = value - $1 WHERE user_id = $2",
 				expense.Value, expense.UserId)
 			if err != nil {
-
-				if errPq, ok := err.(*pgconn.PgError); ok {
-					if errPq.Code == pgerrcode.CheckViolation {
-						return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.NotEnoughUserBalanceError)
-					}
-				}
 
 				return fmt.Errorf("add expense query exec failed: %w", err)
 			}
@@ -242,7 +244,7 @@ func (db *PostgresDB) AddExpense(ctx context.Context, expense struct4parse.Trans
 }
 
 //GetBalance узнаем баланс одного пользователя
-func (db *PostgresDB) GetBalance(ctx context.Context, income *struct4parse.Balance) error {
+func (db *PostgresDB) GetBalance(ctx context.Context, income *utils.Balance) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -278,7 +280,7 @@ func (db *PostgresDB) GetBalance(ctx context.Context, income *struct4parse.Balan
 }
 
 //GetAllBalances получаем список балансов всех пользователей
-func (db *PostgresDB) GetAllBalances(ctx context.Context, income *[]struct4parse.Balance) error {
+func (db *PostgresDB) GetAllBalances(ctx context.Context, income *[]utils.Balance) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -296,8 +298,8 @@ func (db *PostgresDB) GetAllBalances(ctx context.Context, income *[]struct4parse
 		return fmt.Errorf("tx commit failed failed: %s", err.Error())
 	}
 
-	var elem struct4parse.Balance
-	arr := make([]struct4parse.Balance, 0)
+	var elem utils.Balance
+	arr := make([]utils.Balance, 0)
 	for rows.Next() {
 		err := rows.Scan(&elem.UserId, &elem.Value)
 		if err != nil {
@@ -311,7 +313,7 @@ func (db *PostgresDB) GetAllBalances(ctx context.Context, income *[]struct4parse
 }
 
 //GetAllReserved получаем список всех резервов
-func (db *PostgresDB) GetAllReserved(ctx context.Context, income *[]struct4parse.Reserve) error {
+func (db *PostgresDB) GetAllReserved(ctx context.Context, income *[]utils.Reserve) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -328,8 +330,8 @@ func (db *PostgresDB) GetAllReserved(ctx context.Context, income *[]struct4parse
 	}
 	defer rows.Close()
 
-	var elem struct4parse.Reserve
-	arr := make([]struct4parse.Reserve, 0)
+	var elem utils.Reserve
+	arr := make([]utils.Reserve, 0)
 
 	for rows.Next() {
 		err := rows.Scan(&elem.Id, &elem.UserId, &elem.ServiceId, &elem.OrderId, &elem.Value)
@@ -345,7 +347,7 @@ func (db *PostgresDB) GetAllReserved(ctx context.Context, income *[]struct4parse
 }
 
 //GetAllTransactions получаем список балансов всех транзакций
-func (db *PostgresDB) GetAllTransactions(ctx context.Context, income *[]struct4parse.Transaction, by struct4parse.OrderParams) error {
+func (db *PostgresDB) GetAllTransactions(ctx context.Context, income *[]utils.Transaction, by utils.OrderParams) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -369,8 +371,8 @@ func (db *PostgresDB) GetAllTransactions(ctx context.Context, income *[]struct4p
 		return fmt.Errorf("tx commit failed failed: %s", err.Error())
 	}
 
-	var elem struct4parse.Transaction
-	arr := make([]struct4parse.Transaction, 0)
+	var elem utils.Transaction
+	arr := make([]utils.Transaction, 0)
 	for rows.Next() {
 		err := rows.Scan(&elem.Id, &elem.UserId, &elem.ServiceId, &elem.OrderId, &elem.Value, &elem.Time, &elem.Description, &elem.Replenish)
 		if err != nil {
@@ -383,7 +385,7 @@ func (db *PostgresDB) GetAllTransactions(ctx context.Context, income *[]struct4p
 	return nil
 }
 
-func (db *PostgresDB) DisReserve(ctx context.Context, expense struct4parse.Transaction) error {
+func (db *PostgresDB) DisReserve(ctx context.Context, expense utils.Transaction) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -423,13 +425,6 @@ func (db *PostgresDB) DisReserve(ctx context.Context, expense struct4parse.Trans
 		"DELETE FROM balance.reserved WHERE id = $1", index)
 	time := time.Now()
 	if err != nil {
-
-		if errPq, ok := err.(*pgconn.PgError); ok {
-			if errPq.Code == pgerrcode.CheckViolation {
-				return fmt.Errorf("user_id %d: %w", expense.UserId, mErrors.NotEnoughUserBalanceError)
-			}
-		}
-
 		return fmt.Errorf("add expense query exec failed: %w", err)
 	}
 	_, err = tx.Exec(
@@ -449,7 +444,7 @@ func (db *PostgresDB) DisReserve(ctx context.Context, expense struct4parse.Trans
 	return nil
 }
 
-func (db *PostgresDB) GetReports(ctx context.Context, income *[]struct4parse.Report, timeDur struct4parse.Time4Report) error {
+func (db *PostgresDB) GetReports(ctx context.Context, income *[]utils.Report, timeDur utils.Time4Report) error {
 	tx, err := db.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("begin tx failed: %w", err)
@@ -474,8 +469,8 @@ func (db *PostgresDB) GetReports(ctx context.Context, income *[]struct4parse.Rep
 		return fmt.Errorf("tx commit failed failed: %s", err.Error())
 	}
 
-	var elem struct4parse.Report
-	arr := make([]struct4parse.Report, 0)
+	var elem utils.Report
+	arr := make([]utils.Report, 0)
 	for rows.Next() {
 		err := rows.Scan(&elem.Sum, &elem.ServiceId)
 		if err != nil {

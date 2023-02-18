@@ -1,7 +1,6 @@
-package Report
+package utils
 
 import (
-	"balance_service/pkg/struct4parse"
 	"encoding/csv"
 	"fmt"
 	"log"
@@ -9,7 +8,7 @@ import (
 	"strconv"
 )
 
-func MakeReport(arr *[]struct4parse.Report) (string, error) {
+func MakeReport(arr *[]Report) (string, error) {
 	fileOutName := "report.csv"
 
 	r, err := CreateFile(fileOutName)

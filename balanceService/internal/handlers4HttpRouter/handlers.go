@@ -1,10 +1,9 @@
-package handlers
+package handlers4HttpRouter
 
 import (
-	"balance_service/pkg/Report"
 	"balance_service/pkg/mErrors"
 	"balance_service/pkg/repository"
-	"balance_service/pkg/struct4parse"
+	"balance_service/pkg/utils"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,19 +14,19 @@ import (
 	"time"
 )
 
-type Handler struct {
+type Server struct {
 	data   *repository.Repository
 	logger *zap.SugaredLogger
 }
 
-func NewHandler(data *repository.Repository, logger *zap.SugaredLogger) *Handler {
-	return &Handler{
+func NewServer(data *repository.Repository, logger *zap.SugaredLogger) *Server {
+	return &Server{
 		data:   data,
 		logger: logger,
 	}
 }
 
-func (s *Handler) AddIncome(w http.ResponseWriter, r *http.Request) {
+func (s *Server) AddIncome(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -36,7 +35,7 @@ func (s *Handler) AddIncome(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	incomeParams := &struct4parse.BalanceWithDesc{}
+	incomeParams := &utils.BalanceWithDesc{}
 	err = json.Unmarshal(body, incomeParams)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -61,7 +60,7 @@ func (s *Handler) AddIncome(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Handler) AddReserve(w http.ResponseWriter, r *http.Request) {
+func (s *Server) AddReserve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -69,7 +68,7 @@ func (s *Handler) AddReserve(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
 		return
 	}
-	incomeParams := &struct4parse.Transaction{}
+	incomeParams := &utils.Transaction{}
 	err = json.Unmarshal(body, incomeParams)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -94,7 +93,7 @@ func (s *Handler) AddReserve(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
+func (s *Server) AddExpense(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -102,7 +101,7 @@ func (s *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
 		return
 	}
-	incomeParams := &struct4parse.Transaction{}
+	incomeParams := &utils.Transaction{}
 	err = json.Unmarshal(body, incomeParams)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -126,7 +125,7 @@ func (s *Handler) AddExpense(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("{\"status\": \"success\"}"))
 }
 
-func (s *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetBalance(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -135,7 +134,7 @@ func (s *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 		log.Println(err, "1")
 		return
 	}
-	incomeParams := &struct4parse.Balance{}
+	incomeParams := &utils.Balance{}
 	err = json.Unmarshal(body, incomeParams)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -164,10 +163,10 @@ func (s *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	w.Write(ans)
 }
 
-func (s *Handler) GetReserved(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetReserved(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	incomeParams := &[]struct4parse.Reserve{}
+	incomeParams := &[]utils.Reserve{}
 
 	err := s.data.GetAllReserved(r.Context(), incomeParams)
 
@@ -190,10 +189,10 @@ func (s *Handler) GetReserved(w http.ResponseWriter, r *http.Request) {
 	w.Write(ans)
 }
 
-func (s *Handler) GetBalances(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetBalances(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	incomeParams := make([]struct4parse.Balance, 0)
+	incomeParams := make([]utils.Balance, 0)
 
 	err := s.data.GetAllBalances(r.Context(), &incomeParams)
 
@@ -215,7 +214,7 @@ func (s *Handler) GetBalances(w http.ResponseWriter, r *http.Request) {
 	w.Write(ans)
 }
 
-func (s *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetHistory(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -224,7 +223,7 @@ func (s *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		log.Println(err, "1")
 		return
 	}
-	by := &struct4parse.OrderParams{}
+	by := &utils.OrderParams{}
 	err = json.Unmarshal(body, by)
 	if err != nil && string(body) != "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -232,7 +231,7 @@ func (s *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 		log.Println(err, "2")
 		return
 	}
-	incomeParams := make([]struct4parse.Transaction, 0)
+	incomeParams := make([]utils.Transaction, 0)
 	err = s.data.GetAllTransactions(r.Context(), &incomeParams, *by)
 	if err != nil {
 		if errors.Is(err, mErrors.DatabaseError) {
@@ -264,7 +263,7 @@ func (s *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
 	w.Write(ans)
 }
 
-func (s *Handler) DisReserve(w http.ResponseWriter, r *http.Request) {
+func (s *Server) DisReserve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -272,7 +271,7 @@ func (s *Handler) DisReserve(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(fmt.Sprintf("{\"errorText\": \"%s\"}", err)))
 		return
 	}
-	incomeParams := &struct4parse.Transaction{}
+	incomeParams := &utils.Transaction{}
 	err = json.Unmarshal(body, incomeParams)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -297,7 +296,7 @@ func (s *Handler) DisReserve(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Handler) GetReport(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetReport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -306,7 +305,7 @@ func (s *Handler) GetReport(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	timeDur := &struct4parse.Time4Report{}
+	timeDur := &utils.Time4Report{}
 	err = json.Unmarshal(body, timeDur)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -315,10 +314,10 @@ func (s *Handler) GetReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	incomeParams := make([]struct4parse.Report, 0)
+	incomeParams := make([]utils.Report, 0)
 
 	err = s.data.GetReports(r.Context(), &incomeParams, *timeDur)
-	text, err := Report.MakeReport(&incomeParams)
+	text, err := utils.MakeReport(&incomeParams)
 	if err != nil {
 		if errors.Is(err, mErrors.DatabaseError) {
 			w.WriteHeader(http.StatusInternalServerError)

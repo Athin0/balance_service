@@ -1,4 +1,4 @@
-package struct4parse
+package utils
 
 import "time"
 
